@@ -1,17 +1,17 @@
-# Multithreaded Network Dependency Analyzer
+# Microservice Dependency Analyzer
 
-This project simulates a backend service that analyzes a network of connected nodes and processes multiple analytical queries concurrently. It was built to demonstrate proficiency in data handling, graph traversal, and advanced concurrency.
+This project is a multithreaded backend service designed to analyze network topologies and map downstream dependencies in a microservice architecture. It demonstrates proficiency in Object-Oriented Programming (OOP), graph traversal algorithms, and thread-safe concurrency.
 
-## Core Requirements Implemented
+## Architecture & Technical Implementation
 
-*   **Pandas:** Used for data ingestion. The program reads raw node-connection data from a CSV file and processes it into an adjacency list (graph dictionary) for rapid querying.
-*   **Traversal Trees (BFS & DFS):** 
-    *   **BFS (Breadth-First Search):** Implemented to calculate the absolute shortest path between two specific nodes.
-    *   **DFS (Depth-First Search):** Implemented to map out all direct and indirect downstream connections from a starting node.
-*   **Deep Threading (Producer-Consumer Architecture):** Utilized Python's `queue.Queue` to build a thread-safe task pipeline. A main thread acts as the producer, feeding specific traversal queries into the queue.
-*   **Multithreading:** Created a pool of concurrent Worker threads that continuously pull from the thread-safe queue and execute the BFS/DFS algorithms simultaneously without race conditions.
+*   **Data Ingestion (Pandas):** Ingests raw microservice connection data (e.g., API gateways to databases) from a CSV format and constructs a directional adjacency list.
+*   **Graph Traversals:**
+    *   **Breadth-First Search (BFS):** Calculates the shortest execution path between two specific microservices.
+    *   **Depth-First Search (DFS):** Conducts a deep audit of a node to map all direct and indirect downstream dependencies, which is critical for identifying single points of failure.
+*   **Concurrency & Deep Threading:** 
+    *   Implements a Producer-Consumer architecture using Python's thread-safe `queue.Queue`.
+    *   A dynamic pool of worker threads continuously pulls traversal tasks from the queue and executes them concurrently.
+*   **Enterprise Standards:** The codebase utilizes Python type hinting for strict data validation and the built-in `logging` module to track thread execution asynchronously.
 
-## How to Run
-1. Ensure Pandas is installed (`pip install pandas`).
-2. Run `python main.py`. 
-3. The script will automatically generate the mock CSV dataset, build the graph, and trigger the multithreaded workers to solve the queries concurrently.
+## Execution
+Run `python main.py`. The script will automatically initialize the mock microservice topology, spawn the thread pool, and output timestamped logs of the concurrent traversals.

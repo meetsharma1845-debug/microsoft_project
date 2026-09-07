@@ -2,88 +2,144 @@ import pandas as pd
 import threading
 import queue
 import time
+import logging
+from typing import List, Dict, Set
 
-# 1. Create and load the data
-file_path = r"c:\Users\MEET\OneDrive\Desktop\microsoft project\friends.csv"
-data = "person1,person2\nAlice,Bob\nBob,Charlie\nCharlie,David\nAlice,Eve\nEve,Frank\n"
+# Configure professional logging to track concurrent threads
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - [%(threadName)s] - %(levelname)s - %(message)s'
+)
 
-with open(file_path, "w") as f:
-    f.write(data)
+class DependencyAnalyzer:
+    """Analyzes network dependencies using Pandas and Graph Traversals."""
+    
+    def __init__(self, file_path: str):
+        self.file_path = file_path
+        self.graph: Dict[str, List[str]] = {}
+        self._load_and_build_graph()
 
-df = pd.read_csv(file_path)
+    def _load_and_build_graph(self) -> None:
+        """Loads data via Pandas and constructs the adjacency list."""
+        try:
+            df = pd.read_csv(self.file_path)
+            for _, row in df.iterrows():
+                source, target = row['source_node'], row['target_node']
+                if source not in self.graph:
+                    self.graph[source] = []
+                self.graph[source].append(target)
+            logging.info("Successfully loaded data and built dependency graph.")
+        except Exception as e:
+            logging.error(f"Failed to load data: {e}")
 
-# 2. Build the Network Web
-network = {}
-for index, row in df.iterrows():
-    p1 = row['person1']
-    p2 = row['person2']
-    if p1 not in network:
-        network[p1] = []
-    network[p1].append(p2)
-
-# 3. BFS Detective (Shortest path)
-def find_shortest_path(graph, start, target):
-    q = [[start]]
-    visited = set()
-    while q:
-        path = q.pop(0)
-        person = path[-1]
-        if person == target:
-            return path
-        if person not in visited:
-            visited.add(person)
-            for friend in graph.get(person, []):
-                new_path = list(path)
-                new_path.append(friend)
-                q.append(new_path)
-    return []
-
-# 4. DFS Detective (Deep Dive)
-def get_all_connections_dfs(graph, start):
-    stack = [start]
-    visited = set()
-    while stack:
-        person = stack.pop()
-        if person not in visited:
-            visited.add(person)
-            for friend in graph.get(person, []):
-                stack.append(friend)
-    return list(visited)
-
-# 5. NEW: MULTITHREADING & DEEP THREADING
-task_queue = queue.Queue()
-
-def worker_detective(worker_name):
-    while not task_queue.empty():
-        task = task_queue.get()
-        print(f"[{worker_name}] Starting task: {task['task_name']}")
-        
-        time.sleep(1) 
-        
-        if task['type'] == 'BFS':
-            result = find_shortest_path(network, task['start'], task['target'])
-            print(f"   -> [{worker_name}] Solved BFS! Path: {result}")
-        elif task['type'] == 'DFS':
-            result = get_all_connections_dfs(network, task['start'])
-            print(f"   -> [{worker_name}] Solved DFS! Connections: {result}")
+    def find_shortest_path_bfs(self, start: str, target: str) -> List[str]:
+        """Finds the shortest path between two nodes using Breadth-First Search."""
+        if start not in self.graph:
+            return []
             
-        task_queue.task_done()
+        q = [[start]]
+        visited: Set[str] = set()
+        
+        while q:
+            path = q.pop(0)
+            node = path[-1]
+            
+            if node == target:
+                return path
+                
+            if node not in visited:
+                visited.add(node)
+                for neighbor in self.graph.get(node, []):
+                    new_path = list(path)
+                    new_path.append(neighbor)
+                    q.append(new_path)
+        return []
 
-task_queue.put({'task_name': 'Find path Alice to David', 'type': 'BFS', 'start': 'Alice', 'target': 'David'})
-task_queue.put({'task_name': 'Find all Eve connections', 'type': 'DFS', 'start': 'Eve', 'target': None})
-task_queue.put({'task_name': 'Find path Bob to Frank', 'type': 'BFS', 'start': 'Bob', 'target': 'Frank'})
-task_queue.put({'task_name': 'Find all Alice connections', 'type': 'DFS', 'start': 'Alice', 'target': None})
+    def get_all_dependencies_dfs(self, start: str) -> List[str]:
+        """Maps all downstream dependencies using Depth-First Search."""
+        if start not in self.graph:
+            return []
+            
+        stack = [start]
+        visited: Set[str] = set()
+        
+        while stack:
+            node = stack.pop()
+            if node not in visited:
+                visited.add(node)
+                for neighbor in self.graph.get(node, []):
+                    stack.append(neighbor)
+        return list(visited)
 
-print("Boss finished putting tasks in the box. Waking up the workers...\n")
+class TaskManager:
+    """Handles deep threading and concurrency for network analysis."""
+    
+    def __init__(self, analyzer: DependencyAnalyzer, num_threads: int = 3):
+        self.analyzer = analyzer
+        self.task_queue = queue.Queue()
+        self.num_threads = num_threads
+        self.threads: List[threading.Thread] = []
 
-threads = []
-for i in range(3):
-    worker_name = f"Detective-{i+1}"
-    t = threading.Thread(target=worker_detective, args=(worker_name,))
-    threads.append(t)
-    t.start()
+    def worker(self) -> None:
+        """Worker thread logic to process queue tasks."""
+        while not self.task_queue.empty():
+            task = self.task_queue.get()
+            logging.info(f"Processing task: {task['name']}")
+            
+            # Simulate processing time for thread observation
+            time.sleep(0.5) 
+            
+            if task['type'] == 'BFS':
+                result = self.analyzer.find_shortest_path_bfs(task['start'], task['target'])
+                logging.info(f"BFS Result for {task['name']}: {result}")
+            elif task['type'] == 'DFS':
+                result = self.analyzer.get_all_dependencies_dfs(task['start'])
+                logging.info(f"DFS Result for {task['name']}: {result}")
+                
+            self.task_queue.task_done()
 
-for t in threads:
-    t.join()
+    def add_task(self, task: dict) -> None:
+        """Producer method to queue analysis tasks."""
+        self.task_queue.put(task)
 
-print("\nAll tasks completed! We are done.")
+    def execute(self) -> None:
+        """Spawns workers and executes all tasks concurrently."""
+        logging.info("Starting thread pool execution...")
+        for i in range(self.num_threads):
+            t = threading.Thread(target=self.worker, name=f"Worker-{i+1}")
+            self.threads.append(t)
+            t.start()
+
+        for t in self.threads:
+            t.join()
+        logging.info("All tasks completed successfully.")
+
+if __name__ == "__main__":
+    # 1. Generate professional mock dataset (Microservice Architecture)
+    data_path = "microservices.csv"
+    mock_data = (
+        "source_node,target_node\n"
+        "AuthService,UserDatabase\n"
+        "PaymentGateway,FraudDetection\n"
+        "FrontendAPI,AuthService\n"
+        "FrontendAPI,PaymentGateway\n"
+        "AuthService,EmailService\n"
+        "EmailService,NotificationHub\n"
+    )
+    with open(data_path, "w") as f:
+        f.write(mock_data)
+
+    # 2. Initialize the core analyzer
+    analyzer = DependencyAnalyzer(data_path)
+
+    # 3. Setup the Multithreaded Task Manager
+    manager = TaskManager(analyzer, num_threads=3)
+
+    # 4. Load professional queries into the thread-safe queue
+    manager.add_task({'name': 'Route Auth to Email', 'type': 'BFS', 'start': 'AuthService', 'target': 'NotificationHub'})
+    manager.add_task({'name': 'Audit Frontend downstream', 'type': 'DFS', 'start': 'FrontendAPI', 'target': None})
+    manager.add_task({'name': 'Route Frontend to Fraud', 'type': 'BFS', 'start': 'FrontendAPI', 'target': 'FraudDetection'})
+    manager.add_task({'name': 'Audit Payment downstream', 'type': 'DFS', 'start': 'PaymentGateway', 'target': None})
+
+    # 5. Execute concurrently
+    manager.execute()

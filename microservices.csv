@@ -1,0 +1,7 @@
+source_node,target_node
+AuthService,UserDatabase
+PaymentGateway,FraudDetection
+FrontendAPI,AuthService
+FrontendAPI,PaymentGateway
+AuthService,EmailService
+EmailService,NotificationHub
